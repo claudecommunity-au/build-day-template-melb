@@ -1,13 +1,15 @@
 ---
 name: setup-cloudflare
-description: Connect apps/web to a Cloudflare account and do the first deploy - wrangler login check, account into .env.local, Worker secrets from .env.local, deploy, health check. Use when project-init reaches Cloudflare or the user asks for a first deploy.
+description: Connect apps/web to a Cloudflare account and do the first deploy - wrangler login check, account into .env.local, the D1 database and its migrations, Worker secrets from .env.local, deploy, health check. Use when project-init reaches Cloudflare or the user asks for a first deploy.
 allowed-tools: AskUserQuestion, Bash(bun:*), Bash(cp:*), Bash(curl:*), Bash(rm:*), Bash(git:*)
 ---
 
 # Set up Cloudflare
 
 Puts the Worker named in `apps/web/wrangler.jsonc` on the user's Cloudflare
-account. Nothing here touches a tracked file, so there is no commit at the end.
+account, with the D1 database it reads. The only tracked file this touches is
+`wrangler.jsonc`, and only to record the D1 `database_id`. Leave that change
+uncommitted and hand it back.
 
 Run wrangler from the repo root as `bun x wrangler --cwd apps/web …`, so it
 finds `wrangler.jsonc` and reads `apps/web/.env.local`. Change `.env.local` only
@@ -39,10 +41,30 @@ error means it did not.
 
 ## 3. Ask before deploying
 
-The deploy creates a public `workers.dev` URL. Ask with `AskUserQuestion`:
-"Deploy to Cloudflare now?" No: go to step 5.
+The deploy creates a public `workers.dev` URL, and the D1 database in step 4 is
+also created on the account. Ask with `AskUserQuestion`: "Deploy to Cloudflare
+now?" No: go to step 6.
 
-## 4. Deploy
+## 4. Database
+
+The Worker's `DB` binding needs a real D1 database; `database_id` in
+`wrangler.jsonc` still holds the `"local"` placeholder. Use the `database_name`
+already in that binding as `<name>`.
+
+```bash
+bun x wrangler --cwd apps/web d1 create <name>
+bun x wrangler --cwd apps/web d1 info <name> --json
+bun .claude/skills/setup-cloudflare/env.ts database <uuid it printed>
+bun x wrangler --cwd apps/web d1 migrations apply DB --remote
+```
+
+`d1 create` fails if the name is taken; that is fine when the database is the
+user's own, so go straight to `d1 info` for the uuid. `migrations apply` is what
+creates the tables, and it has to run before the first request hits `/notes`.
+
+Done when `d1 migrations apply DB --remote` reports the migrations as applied.
+
+## 5. Deploy
 
 ```bash
 bun run --cwd apps/web build
@@ -57,18 +79,21 @@ The secrets ride along with the deploy because `wrangler secret put` needs a
 Worker that already exists. Run the `rm` whether or not the deploy succeeded;
 the file holds secrets.
 
-Verify: `curl -s <deployed URL>/api/health` returns `{"status":"ok"…}`. A new
-`workers.dev` name can take a minute to resolve; retry a few times before
+Verify: `curl -s <deployed URL>/api/health` returns `{"status":"ok"…}`, and
+`curl -s <deployed URL>/notes` does not show the "Could not reach D1" panel. A
+new `workers.dev` name can take a minute to resolve; retry a few times before
 calling it a failure.
 
-Done when the health check passes and `bun x wrangler --cwd apps/web secret
-list` shows the uploaded names.
+Done when both checks pass and `bun x wrangler --cwd apps/web secret list` shows
+the uploaded names.
 
-## 5. Hand back
+## 6. Hand back
 
-Report the account, the Worker name and the URL (or that the deploy was
-skipped). Leave to the user:
+Report the account, the Worker name, the D1 database name and the URL (or that
+the deploy was skipped), plus the uncommitted `wrangler.jsonc` diff if step 4
+wrote a `database_id`. Leave to the user:
 
-- `MONGODB_URI` is not set on the Worker, so `/notes` shows its "could not reach
-  MongoDB" panel. README "Deploy" steps 2 and 3 cover the Atlas string;
-  `! cd apps/web && bun x wrangler secret put MONGODB_URI` sets it.
+- Committing that `database_id`. It is not a secret, and without it a fresh
+  clone deploys against the `"local"` placeholder.
+- Every later migration needs `bun x wrangler --cwd apps/web d1 migrations apply
+  DB --remote` before the deploy that depends on it.

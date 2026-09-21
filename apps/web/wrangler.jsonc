@@ -4,5 +4,15 @@
   "compatibility_date": "2026-08-19",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "boilerplate",
+      // Filled in by `wrangler d1 create` (the setup-cloudflare skill does it).
+      // Local development ignores the value.
+      "database_id": "local",
+      "migrations_dir": "../../packages/db/migrations"
+    }
+  ]
 }

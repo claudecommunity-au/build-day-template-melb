@@ -60,15 +60,16 @@ line still calls it the boilerplate.
 ## 5. Cloudflare
 
 Invoke the `setup-cloudflare` skill and follow it through. It signs the user
-in, records the account, and asks before it deploys. This comes last so the
-deploy ships the renamed app with auth already decided.
+in, records the account, and asks before it creates the D1 database and
+deploys. This comes last so the deploy ships the renamed app with auth already
+decided.
 
 Done when the skill has handed back, whether or not the user chose to deploy.
 
 ## 6. Hand back
 
 Report the name, whether auth was added (and which Clerk app), the Worker URL
-or that the deploy was skipped, and the uncommitted diff from steps 3 and 4.
+or that the deploy was skipped, and the uncommitted diff from steps 3 to 5.
 Commit only if the user asks. Pass on the follow-ups the invoked skills raised
-(an old deployed Worker, `MONGODB_URI` on the Worker, a Clerk production
-instance); leave those to the user.
+(an old deployed Worker, the D1 `database_id` in `wrangler.jsonc`, a Clerk
+production instance); leave those to the user.

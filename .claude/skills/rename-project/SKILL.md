@@ -23,20 +23,22 @@ for the README headings and the tab title.
 | --- | --- |
 | `package.json` | `name` |
 | `bun.lock` | root workspace `name` (first match only, so a like-named dependency is safe) |
-| `apps/*/wrangler.jsonc` | `name` (the deployed Worker) |
+| `apps/*/wrangler.jsonc` | `name` (the deployed Worker) and `database_name` (the D1 database) |
 | `apps/*/.cta.json` | `projectName` |
 | `README.md`, `apps/*/README.md` | first `# ` heading |
 | `apps/*/src/routes/__root.tsx` | `title` in the document head |
-| `apps/*/.env.example`, `apps/*/.env.local`, `packages/mongo/README.md` | the database name in `mongodb://host/<name>` URIs (`.env.local` is gitignored, so that one is a local convenience; an Atlas URI with its own database name is left alone) |
 
 `apps/web/package.json` stays `"name": "web"` on purpose. That is the workspace
 path identity `turbo --filter=web` resolves, not the project name. Likewise
-`packages/mongo` stays `@repo/mongo`: the `@repo` scope is deliberately not the
+`packages/db` stays `@repo/db`: the `@repo` scope is deliberately not the
 project name.
 
-Renaming the database does not move data. A local `.mongo-data` from before the
-rename still holds the old database; the app simply starts using an empty one
-under the new name. Delete `.mongo-data` if you want a clean slate.
+Renaming `database_name` does not rename anything on Cloudflare. Locally it
+costs nothing: the next `bun run dev` applies the migrations to an empty
+database under the new name. If a real D1 database was already created, tell the
+user to run `wrangler d1 create <new-name>`, put the new id in `database_id` and
+apply the migrations again with `--remote`. The old database and its rows stay
+where they are.
 
 ## After it runs
 

@@ -1,6 +1,6 @@
 # Boilerplate
 
-A [TanStack Start](https://tanstack.com/start) app deployed on Cloudflare Workers, with [Hono](https://hono.dev) as the top-level `fetch` handler and [MongoDB](https://www.mongodb.com) for data.
+A [TanStack Start](https://tanstack.com/start) app deployed on Cloudflare Workers, with [Hono](https://hono.dev) as the top-level `fetch` handler and [Cloudflare D1](https://developers.cloudflare.com/d1/) for data.
 
 There is no auth. To add it, run the `add-clerk` skill (`.claude/skills/add-clerk`).
 
@@ -11,15 +11,16 @@ There is no auth. To add it, run the `add-clerk` skill (`.claude/skills/add-cler
 - Hono handles its own routes first (e.g. `/api/health`).
 - Everything else falls through to `app.all('*', ...)`, which delegates to TanStack Start's request handler (`@tanstack/react-start/server-entry`) for SSR pages, server functions, and static assets.
 
-## MongoDB
+## D1
 
-Database access goes through the workspace package [`@repo/mongo`](../../packages/mongo) (see its README for the driver setup, the local database and the Workers-specific reasoning). In this app:
+Database access goes through the workspace package [`@repo/db`](../../packages/db) (see its README for the schema, the migrations and the test setup). In this app:
 
-- `src/server/notes.ts` holds the server functions. Each handler wraps its work in `withDb(env.MONGODB_URI, ...)`, with `env` from `cloudflare:workers`. That is the one place the connection string is read.
-- `src/routes/notes.tsx` is the example page: the loader calls `listNotesFn`, the form calls `createNoteFn` and invalidates the router. Its `errorComponent` renders a "could not reach MongoDB" panel, which is what you see when the local database is not running.
-- Browser code imports only `@repo/mongo/shared`. The package root imports the driver and belongs in server functions (or Hono routes: `withDb(c.env.MONGODB_URI, ...)` works there too).
+- `wrangler.jsonc` declares the `d1_databases` binding named `DB`, with `migrations_dir` pointing at `packages/db/migrations`. `bun run cf-typegen` turns that into `env.DB: D1Database`.
+- `src/server/notes.ts` holds the server functions. Each handler calls `drizzle(env.DB)` from `drizzle-orm/d1`, with `env` from `cloudflare:workers`. That is the one place the binding is read.
+- `src/routes/notes.tsx` is the example page: the loader calls `listNotesFn`, the form calls `createNoteFn` and invalidates the router. Its `errorComponent` renders a "could not reach D1" panel.
+- Browser code imports only `@repo/db/shared`. The other entries import drizzle and belong in server functions (or Hono routes, where `drizzle(c.env.DB)` works the same way).
 
-`MONGODB_URI` names the database in its path. The default in `.env.example` points at the local server that `bun run dev` starts; for Atlas, paste the cluster's `mongodb+srv://` string instead.
+`bun run dev` runs `wrangler d1 migrations apply DB --local` before starting Vite, so the local database that Miniflare serves is always up to date. It lives in `.wrangler`, which is gitignored; delete that folder for a clean slate.
 
 ## Develop
 
@@ -28,21 +29,15 @@ bun install
 bun run dev
 ```
 
-`MONGODB_URI` can stay at its `.env.example` default for local work.
+The database needs no configuration for local work.
 
 ## Build & deploy
 
-`.env.local` only feeds local dev — it's never uploaded. Before the first `wrangler deploy`, set everything the Worker reads from `env` as a real Worker secret:
+The local database only exists on your machine, so the deployed Worker needs a real D1 database. Create one, put the id it prints into `d1_databases[0].database_id` in `wrangler.jsonc`, and create the tables:
 
 ```bash
-wrangler secret put MONGODB_URI
-```
-
-`MONGODB_URI` must be an Atlas (or otherwise reachable) connection string; the local server only exists on your machine. Use the cluster's `mongodb+srv://...` string with the database name in its path, and allow connections from anywhere in Atlas Network Access (Workers have no fixed egress IPs). Then create the indexes once against that database:
-
-```bash
-cd ../../packages/mongo
-MONGODB_URI='mongodb+srv://...' bun run ensure-indexes
+bunx wrangler d1 create boilerplate
+bunx wrangler d1 migrations apply DB --remote
 ```
 
 Then:

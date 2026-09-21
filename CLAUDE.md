@@ -112,28 +112,30 @@ output. Never hand-edit them, and put nothing else in `components/ui/`. `biome.j
 excludes them at the `files` level because `ultracite fix` corrupts them. See
 `apps/web/src/components/ui/CLAUDE.md`.
 
-## MongoDB
+## Database (D1 + Drizzle)
 
-Data access lives in `packages/mongo` (`@repo/mongo`), see its README. Rules that
+Data access lives in `packages/db` (`@repo/db`), see its README. Rules that
 are easy to break:
 
-- Server code imports `@repo/mongo` / `@repo/mongo/notes`; anything a React
-  component needs comes from `@repo/mongo/shared`. The other entries pull the driver
-  into the browser bundle. One entry per module in `exports`, no barrel file.
-- Use `withDb(uri, fn)`; never cache a `MongoClient` at module scope. Workers tie
-  sockets to the request that opened them, and a cached client hangs the next request.
-- The driver stays on 6.x until Bun implements `v8.startupSnapshot` (bson 7 breaks
-  `bun test`).
-- Local database: `bun run dev` (root or `packages/mongo`) starts a real `mongod` via
-  mongodb-memory-server, data in `.mongo-data`. No Docker.
+- Server code imports `@repo/db` / `@repo/db/notes`; anything a React component
+  needs comes from `@repo/db/shared`. The other entries pull drizzle into the
+  browser bundle. One entry per module in `exports`, no barrel file.
+- Query functions take a drizzle instance, they never make one. The app passes
+  `drizzle(env.DB)` from `drizzle-orm/d1`; the tests pass a `bun:sqlite` one. The
+  parameter type is `Database` from `@repo/db`, which covers both.
+- Changing `src/schema.ts` means running `bun run generate` in `packages/db` and
+  committing `migrations/` including `migrations/meta/`.
+- Migrations are applied by wrangler, not drizzle-kit: `wrangler d1 migrations
+  apply DB --local` (which `bun run dev` does for you) or `--remote`.
+- Local database: SQLite via Miniflare, in `apps/web/.wrangler`. No account, no
+  Docker. Delete that folder for a clean slate.
 
 ## Deploy
 
 Local dev needs no accounts. Deploying needs a Cloudflare account (`bunx wrangler
-login`) and a MongoDB Atlas cluster with Network Access open to `0.0.0.0/0`. Before the
-first `bun run deploy`, set `MONGODB_URI` (the Atlas string, database name in the path)
-with `wrangler secret put` in `apps/web`, and run `ensure-indexes` in
-`packages/mongo` against Atlas once. Full steps: README.md "Deploy".
+login`) and a D1 database (`wrangler d1 create <name>`, its id into `d1_databases`
+in `apps/web/wrangler.jsonc`). Before the first `bun run deploy`, run `wrangler d1
+migrations apply DB --remote` once. Full steps: README.md "Deploy".
 
 ## Auth
 

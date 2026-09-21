@@ -56,12 +56,11 @@ const appFiles = async (pattern: string) => {
   return found;
 };
 
+// `"name":` needs the quote in front, so this does not also hit
+// `"database_name":`, which gets its own rewrite below.
 const nameField = new RegExp(`("name":\\s*)"${oldName}"`);
 const heading = new RegExp(`^# ${oldTitle}$`, "m");
-// The database name is the path of a MongoDB connection string. Matching the
-// whole `mongodb://host/<name>` shape leaves any other URI (say, an Atlas
-// cluster with its own database name in .env.local) alone.
-const databaseName = new RegExp(`(mongodb://[^/\\s\`]+/)${oldName}\\b`, "g");
+const databaseNameField = new RegExp(`("database_name":\\s*)"${oldName}"`);
 
 const rewrites: Rewrite[] = [
   {
@@ -87,6 +86,12 @@ for (const path of await appFiles("apps/*/wrangler.jsonc")) {
     to: `$1"${newName}"`,
     what: "Worker name",
   });
+  rewrites.push({
+    file: path,
+    find: databaseNameField,
+    to: `$1"${newName}"`,
+    what: "D1 database name",
+  });
 }
 for (const path of await appFiles("apps/*/.cta.json")) {
   rewrites.push({
@@ -104,19 +109,6 @@ for (const path of await appFiles("apps/*/README.md")) {
     what: "heading",
   });
 }
-const databaseFiles = [
-  ...(await appFiles("apps/*/.env.example")),
-  ...(await appFiles("apps/*/.env.local")),
-  "packages/mongo/README.md",
-];
-for (const path of databaseFiles) {
-  rewrites.push({
-    file: path,
-    find: databaseName,
-    to: `$1${newName}`,
-    what: "MongoDB database name",
-  });
-}
 for (const path of await appFiles("apps/*/src/routes/__root.tsx")) {
   rewrites.push({
     file: path,
@@ -127,29 +119,44 @@ for (const path of await appFiles("apps/*/src/routes/__root.tsx")) {
   });
 }
 
-const apply = async ({ file: path, find, to, what }: Rewrite) => {
+/** Every rewrite for one file, in one read and one write. */
+const apply = async (path: string, forFile: Rewrite[]) => {
   const handle = file(`${root}/${path}`);
   if (!(await handle.exists())) {
-    return null;
+    return [];
   }
   const before = await handle.text();
-  const after = before.replace(find, to);
-  if (after !== before) {
-    await write(handle, after);
+  let text = before;
+  const results: { changed: boolean; label: string }[] = [];
+  for (const { find, to, what } of forFile) {
+    const after = text.replace(find, to);
+    results.push({ changed: after !== text, label: `${path} (${what})` });
+    text = after;
   }
-  return { changed: after !== before, label: `${path} (${what})` };
+  if (text !== before) {
+    await write(handle, text);
+  }
+  return results;
 };
 
-// Each rewrite targets a distinct file, so these can run together.
-const results = await Promise.all(rewrites.map(apply));
+// Grouped by file, because wrangler.jsonc carries both the Worker name and the
+// D1 database name and the two rewrites must not race each other.
+const byFile = new Map<string, Rewrite[]>();
+for (const rewrite of rewrites) {
+  const forFile = byFile.get(rewrite.file) ?? [];
+  forFile.push(rewrite);
+  byFile.set(rewrite.file, forFile);
+}
+
+const grouped = await Promise.all(
+  [...byFile].map(([path, forFile]) => apply(path, forFile))
+);
 
 console.log(`Renamed "${oldName}" -> "${newName}"\n`);
-for (const result of results) {
-  if (result) {
-    console.log(
-      `  ${result.changed ? "updated  " : "unchanged"} ${result.label}`
-    );
-  }
+for (const result of grouped.flat()) {
+  console.log(
+    `  ${result.changed ? "updated  " : "unchanged"} ${result.label}`
+  );
 }
 
 const remaining = await $`git grep -rin ${oldName} -- . ':!bun.lock'`

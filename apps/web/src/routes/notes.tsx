@@ -1,4 +1,4 @@
-import { NOTE_TEXT_MAX_LENGTH } from "@repo/mongo/shared";
+import { NOTE_TEXT_MAX_LENGTH } from "@repo/db/shared";
 import {
   createFileRoute,
   type ErrorComponentProps,
@@ -48,14 +48,14 @@ function NotesPage() {
   return (
     <main className="page-wrap px-4 py-12">
       <section className="max-w-3xl">
-        <p className="island-kicker mb-3">MongoDB</p>
+        <p className="island-kicker mb-3">Cloudflare D1</p>
         <h1 className="display-title mb-4 text-4xl text-foreground sm:text-5xl">
           Notes
         </h1>
         <p className="m-0 max-w-3xl text-base text-muted-foreground leading-8">
           A minimal round trip: a server function reads and writes a{" "}
-          <code>notes</code> collection through <code>@repo/mongo</code>. Add a
-          note and it lands in the database named in <code>MONGODB_URI</code>.
+          <code>notes</code> table through <code>@repo/db</code>. Add a note and
+          it lands in the D1 database bound as <code>DB</code>.
         </p>
       </section>
 
@@ -119,15 +119,16 @@ function NotesError({ error }: ErrorComponentProps) {
   return (
     <main className="page-wrap px-4 py-12">
       <section className="island-shell max-w-3xl p-6 sm:p-8">
-        <p className="island-kicker mb-3">MongoDB</p>
+        <p className="island-kicker mb-3">Cloudflare D1</p>
         <h1 className="display-title mb-4 text-3xl text-foreground">
-          Could not reach MongoDB
+          Could not reach D1
         </h1>
         <p className="m-0 text-muted-foreground text-sm leading-7">
-          Check <code>MONGODB_URI</code> in <code>apps/web/.env.local</code>.
-          For local development, start the database with{" "}
-          <code>bun run dev</code> in <code>packages/mongo</code> (the root{" "}
-          <code>bun run dev</code> does this for you).
+          Locally this usually means the migrations have not been applied:{" "}
+          <code>bun run dev</code> does that on start. On a deployed Worker,
+          check that <code>database_id</code> in <code>wrangler.jsonc</code>{" "}
+          names a real database and that{" "}
+          <code>wrangler d1 migrations apply DB --remote</code> has been run.
         </p>
         <pre className="mt-4 overflow-x-auto rounded-md bg-muted p-3 text-xs">
           {message}

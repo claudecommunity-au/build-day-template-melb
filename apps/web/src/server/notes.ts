@@ -1,14 +1,14 @@
 // Server functions for the notes example. Only the `.handler()` bodies run on
-// the server; the client bundle gets RPC stubs, so importing the driver and
+// the server; the client bundle gets RPC stubs, so importing drizzle and
 // `cloudflare:workers` here never reaches the browser.
 
 import { env } from "cloudflare:workers";
-import { withDb } from "@repo/mongo";
-import { createNote, listNotes } from "@repo/mongo/notes";
+import { createNote, listNotes } from "@repo/db/notes";
 import { createServerFn } from "@tanstack/react-start";
+import { drizzle } from "drizzle-orm/d1";
 
 export const listNotesFn = createServerFn({ method: "GET" }).handler(() =>
-  withDb(env.MONGODB_URI, (db) => listNotes(db))
+  listNotes(drizzle(env.DB))
 );
 
 export const createNoteFn = createServerFn({ method: "POST" })
@@ -19,4 +19,4 @@ export const createNoteFn = createServerFn({ method: "POST" })
     }
     return { text };
   })
-  .handler(({ data }) => withDb(env.MONGODB_URI, (db) => createNote(db, data)));
+  .handler(({ data }) => createNote(drizzle(env.DB), data));

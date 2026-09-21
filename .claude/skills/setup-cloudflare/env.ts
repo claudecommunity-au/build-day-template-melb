@@ -10,14 +10,11 @@
 import { tmpdir } from "node:os";
 import { $, file, write } from "bun";
 
-// Everything else in .env.local is local-only: DEV_LOGIN_* must never reach a
-// deployed Worker, MONGODB_URI points at the local mongod, and
-// CLOUDFLARE_ACCOUNT_ID is for wrangler itself.
-const DEPLOYED_KEYS = [
-  "CLERK_SECRET_KEY",
-  "CLERK_PUBLISHABLE_KEY",
-  "VITE_CLERK_PUBLISHABLE_KEY",
-] as const;
+// Empty by design: nothing the boilerplate puts in .env.local belongs on a
+// deployed Worker. MONGODB_URI points at the local mongod, and
+// CLOUDFLARE_ACCOUNT_ID is for wrangler itself. A skill that adds a service the
+// Worker reads keys from (add-clerk) adds those key names here.
+const DEPLOYED_KEYS: readonly string[] = [];
 
 const root = (await $`git rev-parse --show-toplevel`.text()).trim();
 const envPath = `${root}/apps/web/.env.local`;

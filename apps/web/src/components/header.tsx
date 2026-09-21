@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "#/components/ui/button";
-import ClerkHeader from "../integrations/clerk/header-user.tsx";
 import ThemeToggle from "./theme-toggle";
 
 export default function Header() {
@@ -96,8 +95,6 @@ export default function Header() {
               </svg>
             </a>
           </Button>
-          <ClerkHeader />
-
           <ThemeToggle />
         </div>
       </nav>

@@ -4,7 +4,9 @@ A [Turborepo](https://turborepo.com) monorepo, managed with Bun workspaces.
 
 ## Apps
 
-- [`apps/web`](apps/web) — the [TanStack Start](https://tanstack.com/start) front end, deployed on Cloudflare Workers, with [Clerk](https://clerk.com) for auth and [MongoDB](https://www.mongodb.com) for data. See its [README](apps/web/README.md) for architecture, the Clerk integration, and setup.
+- [`apps/web`](apps/web) — the [TanStack Start](https://tanstack.com/start) front end, deployed on Cloudflare Workers, with [MongoDB](https://www.mongodb.com) for data. See its [README](apps/web/README.md) for architecture and setup.
+
+There is no auth. To add it, run the `add-clerk` skill (`.claude/skills/add-clerk`).
 
 ## Packages
 
@@ -67,12 +69,9 @@ MONGODB_URI='mongodb+srv://...' bun run ensure-indexes
 ```bash
 cd apps/web
 wrangler secret put MONGODB_URI              # the Atlas string from step 2
-wrangler secret put CLERK_SECRET_KEY
-wrangler secret put CLERK_PUBLISHABLE_KEY
-wrangler secret put VITE_CLERK_PUBLISHABLE_KEY
 ```
 
-Each command prompts for the value. Never set `DEV_LOGIN_EMAIL` / `DEV_LOGIN_PASSWORD` on a deployed Worker; their absence is what disables the dev login route.
+The command prompts for the value.
 
 ### 4. Ship it
 

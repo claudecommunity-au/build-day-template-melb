@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Edits apps/web/.env.local for the setup-clerk skill without printing a
+ * Edits apps/web/.env.local for the add-clerk skill without printing a
  * secret. Commands:
  *
  *   sync               give CLERK_PUBLISHABLE_KEY and VITE_CLERK_PUBLISHABLE_KEY
@@ -38,7 +38,7 @@ const set = (key: string, value: string) => {
 
 const usage = () => {
   console.error(
-    "usage: bun .claude/skills/setup-clerk/env.ts sync | dev-login <email>"
+    "usage: bun .claude/skills/add-clerk/env.ts sync | dev-login <email>"
   );
   process.exit(1);
 };

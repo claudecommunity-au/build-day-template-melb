@@ -132,16 +132,9 @@ are easy to break:
 Local dev needs no accounts. Deploying needs a Cloudflare account (`bunx wrangler
 login`) and a MongoDB Atlas cluster with Network Access open to `0.0.0.0/0`. Before the
 first `bun run deploy`, set `MONGODB_URI` (the Atlas string, database name in the path)
-and the three Clerk keys with `wrangler secret put` in `apps/web`, and run
-`ensure-indexes` in `packages/mongo` against Atlas once. Never set `DEV_LOGIN_*` on a
-deployed Worker. Full steps: README.md "Deploy".
+with `wrangler secret put` in `apps/web`, and run `ensure-indexes` in
+`packages/mongo` against Atlas once. Full steps: README.md "Deploy".
 
-## Dev login (testing)
+## Auth
 
-`apps/web` exposes a one-click dev login for local testing: `/login` has a
-"Dev login (local only)" link (dev builds only) that hits `GET /api/dev-login`,
-mints a Clerk sign-in token for a dedicated dev user, and redeems it at
-`/dev-login` to establish a real session without going through Clerk's UI.
-Only active when `DEV_LOGIN_EMAIL`/`DEV_LOGIN_PASSWORD` are set in
-`apps/web/.env.local` (never set these in a deployed environment). Create/
-refresh the dev user with `bun run create-dev-user` from `apps/web`.
+There is none. To add it, run the `add-clerk` skill (`.claude/skills/add-clerk`).

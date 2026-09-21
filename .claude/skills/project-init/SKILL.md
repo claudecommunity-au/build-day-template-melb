@@ -1,6 +1,6 @@
 ---
 name: project-init
-description: Turn this boilerplate into a named project - asks for the name, renames, keeps (and connects) or strips Clerk auth, puts the name in the README, and connects Cloudflare for a first deploy.
+description: Turn this boilerplate into a named project - asks for the name, renames, optionally adds auth, puts the name in the README, and connects Cloudflare for a first deploy.
 disable-model-invocation: true
 allowed-tools: AskUserQuestion, Skill, Bash(git:*), Bash(bun:*), Read, Edit, Write
 ---
@@ -30,17 +30,16 @@ its commit. Its "still mentions the old name" list includes hits inside
 `.claude/skills/`; leave those as they are.
 
 Done when `git status` is clean and the commit names both the old and new name.
-`remove-clerk` needs that clean tree to start.
+`add-clerk` needs that clean tree to start.
 
 ## 3. Ask about auth
 
-Use `AskUserQuestion`: "Keep Clerk authentication?"
+The boilerplate ships with no auth. Use `AskUserQuestion`: "Add authentication?"
 
-- **Keep Clerk**: invoke the `setup-clerk` skill and follow it through. It
-  picks or creates the Clerk application and puts its keys in
-  `apps/web/.env.local`.
-- **Remove Clerk**: invoke the `remove-clerk` skill and follow it through,
-  including its verification.
+- **Add Clerk**: invoke the `add-clerk` skill and follow it through, including
+  its verification. It wires Clerk into the app and connects it to a Clerk
+  application.
+- **No auth**: nothing to do, go to step 4.
 
 Done when the chosen branch is complete.
 
@@ -62,15 +61,14 @@ line still calls it the boilerplate.
 
 Invoke the `setup-cloudflare` skill and follow it through. It signs the user
 in, records the account, and asks before it deploys. This comes last so the
-deploy ships the renamed, Clerk-decided app.
+deploy ships the renamed app with auth already decided.
 
 Done when the skill has handed back, whether or not the user chose to deploy.
 
 ## 6. Hand back
 
-Report the name, whether Clerk was kept (and which Clerk app), the Worker URL
+Report the name, whether auth was added (and which Clerk app), the Worker URL
 or that the deploy was skipped, and the uncommitted diff from steps 3 and 4.
 Commit only if the user asks. Pass on the follow-ups the invoked skills raised
 (an old deployed Worker, `MONGODB_URI` on the Worker, a Clerk production
-instance, Clerk secrets or the dashboard app after a removal); leave those to
-the user.
+instance); leave those to the user.

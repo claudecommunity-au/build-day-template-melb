@@ -1,9 +1,10 @@
 // Safe to import from browser code: no driver, no Node APIs. Everything the UI
-// needs from this package lives here; the package root pulls in the driver.
+// needs from this package lives here; the other entries pull in drizzle.
 
 /**
  * How a note leaves this package: plain JSON. Server functions serialize
- * their results, and `ObjectId`/`Date` would not survive the round trip.
+ * their results, so the row's numeric id becomes a string and the timestamp
+ * stays an ISO string.
  */
 export interface Note {
   createdAt: string;

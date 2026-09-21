@@ -4,11 +4,11 @@ A [Turborepo](https://turborepo.com) monorepo, managed with Bun workspaces.
 
 ## Apps
 
-- [`apps/web`](apps/web) — the [TanStack Start](https://tanstack.com/start) front end, deployed on Cloudflare Workers, with [Clerk](https://clerk.com) for auth and [MongoDB](https://www.mongodb.com) for data. See its [README](apps/web/README.md) for architecture, the Clerk integration, and setup.
+- [`apps/web`](apps/web) — the [TanStack Start](https://tanstack.com/start) front end, deployed on Cloudflare Workers, with [Clerk](https://clerk.com) for auth and [Cloudflare D1](https://developers.cloudflare.com/d1/) for data. See its [README](apps/web/README.md) for architecture, the Clerk integration, and setup.
 
 ## Packages
 
-- [`packages/mongo`](packages/mongo) — `@repo/mongo`: the MongoDB driver, connection handling for Workers, a Docker-free local database, and the example `notes` collection. See its [README](packages/mongo/README.md).
+- [`packages/db`](packages/db) — `@repo/db`: the Drizzle schema for D1, the generated migrations, and the example `notes` table. See its [README](packages/db/README.md).
 
 ## Develop
 
@@ -17,7 +17,7 @@ bun install
 bun run dev
 ```
 
-`bun run dev` starts the web app and a local MongoDB (a real `mongod`, downloaded on first run, data kept in `.mongo-data`). No Docker needed. Open the Notes page to see the round trip.
+`bun run dev` applies the D1 migrations to a local database and starts the web app. The local database is SQLite, run by [Miniflare](https://developers.cloudflare.com/workers/testing/miniflare/) under the Cloudflare Vite plugin, and lives in `apps/web/.wrangler`. No account and no Docker needed. Open the Notes page to see the round trip.
 
 Commands at the root run across all apps via [Turborepo](https://turborepo.com):
 
@@ -45,20 +45,22 @@ bunx wrangler login
 
 If you belong to more than one Cloudflare account, `wrangler deploy` will ask which one to use; set `CLOUDFLARE_ACCOUNT_ID` in `apps/web/.env.local` to skip the prompt. The Worker's name comes from `apps/web/wrangler.jsonc` (the `rename-project` skill sets it).
 
-### 2. A MongoDB Atlas database
+### 2. A D1 database
 
-The local `mongod` that `bun run dev` starts only exists on your machine, so a deployed Worker needs a database it can reach. [MongoDB Atlas](https://www.mongodb.com/atlas) has a free tier:
-
-1. Create a cluster, then a database user with read/write access.
-2. Under **Network Access**, allow connections from anywhere (`0.0.0.0/0`). Workers have no fixed egress IPs, so an IP allowlist cannot be made to work.
-3. Copy the cluster's connection string (**Connect** > **Drivers**) and put the database name in its path, for example `mongodb+srv://user:pass@cluster0.abcde.mongodb.net/boilerplate`.
-
-Create the indexes once against that database:
+The local database only exists on your machine, so a deployed Worker needs a real [D1](https://developers.cloudflare.com/d1/) database. It is on the same free plan as the Worker:
 
 ```bash
-cd packages/mongo
-MONGODB_URI='mongodb+srv://...' bun run ensure-indexes
+cd apps/web
+bunx wrangler d1 create boilerplate
 ```
+
+That prints a `database_id`. Put it in the `d1_databases` entry in `apps/web/wrangler.jsonc`, replacing the `"local"` placeholder, then create the tables:
+
+```bash
+bunx wrangler d1 migrations apply DB --remote
+```
+
+Repeat the `migrations apply --remote` whenever `packages/db` gains a new migration.
 
 ### 3. Secrets on the Worker
 
@@ -66,7 +68,6 @@ MONGODB_URI='mongodb+srv://...' bun run ensure-indexes
 
 ```bash
 cd apps/web
-wrangler secret put MONGODB_URI              # the Atlas string from step 2
 wrangler secret put CLERK_SECRET_KEY
 wrangler secret put CLERK_PUBLISHABLE_KEY
 wrangler secret put VITE_CLERK_PUBLISHABLE_KEY
@@ -80,7 +81,7 @@ Each command prompts for the value. Never set `DEV_LOGIN_EMAIL` / `DEV_LOGIN_PAS
 bun run deploy
 ```
 
-That builds and runs `wrangler deploy`. The URL is printed at the end; open `/notes` on it to confirm the database connection. Repeat step 3 only when a secret changes.
+That builds and runs `wrangler deploy`. The URL is printed at the end; open `/notes` on it to confirm the database binding. Repeat step 3 only when a secret changes.
 
 ## License
 
